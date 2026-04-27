@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data & Large Files
+data/
+flickr30k-images/
+results_20130124.token
+*.zip
+*.tar.gz
+
+# PyTorch Weights
+*.pth
+*.pt
+*.ckpt
+!best_*.pth  # Optional: Keep best weights if specifically named like this
+
+# Logging & Checkpoints
+runs/
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# Jupyter reference files
+*copy.ipynb
+nanoVLM_original.ipynb
+
+# Environment & Config
+.env
+.venv
+env/
+venv/
+ENV/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary scripts
+patch_notebook.py
+fix_*.py
