@@ -42,3 +42,7 @@ ENV/
 # Temporary scripts
 patch_notebook.py
 fix_*.py
+save_tokenizer.py
+
+# HuggingFace deployment
+!tokenizer_vocab.pth  # Essential for the demo, keep this

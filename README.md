@@ -33,19 +33,22 @@ After training on the Flickr30k validation set, the model achieved the following
 
 ```text
 NanoVLM/
-├── nanoVLM.ipynb         # Main Jupyter Notebook (Upgraded Version)
-├── nanoVLM_original.ipynb # Original scratch-built version (for reference)
-├── data/                 # Flickr30k dataset directory
-├── runs/                 # TensorBoard log directory
-├── best_img_enc.pth      # Top-performing Image Encoder weights
-├── best_txt_enc.pth      # Top-performing Text Encoder weights
-└── best_meta.pth         # Training metadata (epoch, loss, etc.)
+├── nanoVLM.ipynb         # Model training & experimentation
+├── nanoVLM_original.ipynb # Baseline scratch implementation
+├── model.py              # Model architecture definitions
+├── app.py                # Inference & demonstration interface
+├── tokenizer_vocab.pth   # Vocabulary state dictionary
+├── data/                 # Dataset root
+├── runs/                 # TensorBoard telemetry
+├── best_img_enc.pth      # Optimized Image Encoder weights
+├── best_txt_enc.pth      # Optimized Text Encoder weights
+└── best_meta.pth         # Training metadata & state
 ```
 
 ## 🛠️ Prerequisites & Installation
 
 ```bash
-pip install torch torchvision numpy matplotlib pillow tensorboard
+pip install torch torchvision numpy matplotlib pillow tensorboard gradio
 ```
 
 ## 🧠 Architecture Details
