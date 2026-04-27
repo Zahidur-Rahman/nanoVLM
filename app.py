@@ -1,21 +1,7 @@
 """
-NanoVLM - app.py
-================
-Gradio web demo for HuggingFace Spaces.
-
-What it does:
-  - Upload an image
-  - Enter up to 5 candidate captions
-  - The model scores each caption against the image
-  - A bar chart shows which caption matches best!
-
-Usage (local):
-    pip install gradio torch torchvision pillow
-    python app.py
-
-Usage (HuggingFace Spaces):
-    Upload this file alongside model.py, best_img_enc.pth,
-    best_txt_enc.pth, and tokenizer_vocab.pth to your Space repo.
+NanoVLM - Gradio Demo
+=====================
+Inference interface for image-caption matching.
 """
 
 import torch

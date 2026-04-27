@@ -1,14 +1,8 @@
 """
-NanoVLM - model.py
-==================
-Standalone model classes for inference and HuggingFace deployment.
-Extracted from nanoVLM.ipynb training notebook.
-
-Architecture:
-  - ImageEncoder: MobileNetV2 backbone + MultiheadAttention + MLP head
-  - TextEncoder:  6-layer Transformer + MLP head
-  - CLIPLoss:     Symmetric cross-entropy with learnable temperature
-  - SimpleTokenizer: Custom word-level tokenizer
+NanoVLM - Architecture & Inference
+==================================
+Vision-Language alignment model with MobileNetV2 vision backbone 
+and Transformer text encoder.
 """
 
 import re
@@ -96,19 +90,13 @@ class SimpleTokenizer:
 # ── Image Encoder ─────────────────────────────────────────────────────────────
 class ImageEncoder(nn.Module):
     """
-    MobileNetV2 backbone (pretrained on ImageNet) → AdaptiveAvgPool → Dropout
-    → Linear projection → Self-attention → MLP head → L2-normalised embedding.
-
-    Upgrades vs. original scratch CNN:
-      • Pre-trained visual features  → richer spatial representations
-      • Frozen early layers           → preserves low-level edge detectors
-      • Self-attention block          → global context modelling
-      • MLP head after attention      → extra non-linear projection capacity
+    Vision encoder using MobileNetV2 backbone with a self-attention 
+    bottleneck and MLP projection head.
     """
     def __init__(self, embd_dim=EMBD_DIM, dropout=DROPOUT):
         super().__init__()
 
-        # MobileNetV2 backbone (ImageNet pretrained), output channels = 1280
+        # Pretrained backbone with partial freezing
         backbone = tv_models.mobilenet_v2(weights=tv_models.MobileNet_V2_Weights.DEFAULT).features
 
         # Freeze first 14 blocks (low-level texture/edge detectors)
@@ -128,7 +116,7 @@ class ImageEncoder(nn.Module):
             embed_dim=embd_dim, num_heads=ATTEN_HEADS, batch_first=True, dropout=dropout
         )
 
-        # MLP head with GELU (mirrors real CLIP's projection head)
+        # MLP head with GELU (similar to CLIP's projection head)
         self.mlp_head = nn.Sequential(
             nn.Linear(embd_dim, embd_dim * 2),
             nn.GELU(),
@@ -155,12 +143,8 @@ class ImageEncoder(nn.Module):
 # ── Text Encoder ──────────────────────────────────────────────────────────────
 class TextEncoder(nn.Module):
     """
-    Embedding → 6-layer Transformer → mean pool → MLP head → L2-normalised embedding.
-
-    Upgrades vs. original:
-      • num_layers=6  → deeper language model (was 3)
-      • MLP projection head with GELU → richer embedding space
-      • Residual on MLP head          → stable gradient flow
+    Textual encoder using a multi-layer Transformer with mean-pooling 
+    and residual MLP projection.
     """
     def __init__(self, embd_dim=EMBD_DIM, num_heads=ATTEN_HEADS,
                  vocab_size=VOCAB_SIZE, context_window=CONTEXT_LEN,
@@ -178,7 +162,6 @@ class TextEncoder(nn.Module):
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
         self.norm = nn.LayerNorm(embd_dim)
 
-        # MLP projection head (mirrors real CLIP's text projection)
         self.mlp_head = nn.Sequential(
             nn.Linear(embd_dim, embd_dim * 2),
             nn.GELU(),
@@ -204,7 +187,6 @@ class TextEncoder(nn.Module):
 class CLIPLoss(nn.Module):
     """
     Symmetric cross-entropy over the image-text similarity matrix.
-    Uses label_smoothing=0.1 for better generalisation.
     """
     def __init__(self, label_smoothing=0.1):
         super().__init__()
