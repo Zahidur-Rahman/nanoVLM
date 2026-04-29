@@ -92,7 +92,9 @@ def run_demo(image, caption1, caption2, caption3, caption4, caption5):
     bars = ax.barh(labels[::-1], values[::-1], color=colors[::-1], edgecolor="white")
     ax.set_xlabel("Cosine Similarity Score", fontsize=11)
     ax.set_title("NanoVLM: Image-Caption Matching", fontsize=13, fontweight="bold")
-    ax.set_xlim(0, 1)
+    lo = min(min(values) - 0.05, 0)
+    hi = max(max(values) + 0.08, 0.3)
+    ax.set_xlim(lo, hi)
 
     for bar, val in zip(bars, values[::-1]):
         ax.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height() / 2,
@@ -151,9 +153,9 @@ with gr.Blocks(theme=gr.themes.Soft(), title="NanoVLM Demo") as demo:
     gr.Markdown(
         """
         ---
-        **Architecture:** MobileNetV2 backbone + 6-layer Transformer | 
-        **Training:** Flickr30k, 14 epochs, EMA + Gradient Accumulation |
-        **Results:** Recall@5: 56.6% | Recall@10: 73.0%
+        **Architecture:** MobileNetV2 (spatial attention) + 6-layer Transformer | 
+        **Training:** MS-COCO, EMA + Gradient Accumulation |
+        **Embedding:** 256-dim shared latent space
         """
     )
 

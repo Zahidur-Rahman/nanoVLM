@@ -14,7 +14,11 @@ results_20130124.token
 *.pth
 *.pt
 *.ckpt
-!best_*.pth  # Optional: Keep best weights if specifically named like this
+
+# Only track the inference weights and tokenizer (exclude massive optimizer states)
+!best_img_enc.pth
+!best_txt_enc.pth
+!tokenizer_vocab.pth
 
 # Logging & Checkpoints
 runs/

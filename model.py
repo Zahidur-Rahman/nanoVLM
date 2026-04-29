@@ -90,8 +90,14 @@ class SimpleTokenizer:
 # ── Image Encoder ─────────────────────────────────────────────────────────────
 class ImageEncoder(nn.Module):
     """
-    Vision encoder using MobileNetV2 backbone with a self-attention 
-    bottleneck and MLP projection head.
+    Vision encoder: MobileNetV2 backbone → spatial token projection →
+    self-attention over image regions → mean pooling → MLP head.
+
+    MobileNetV2 outputs a 7×7 spatial grid (for 224×224 input), giving 49
+    spatial tokens.  Self-attention lets the model learn which regions of the
+    image carry semantic weight for a given caption (e.g. focus on the dog,
+    not the sky).  This replaces the previous design that pooled *before*
+    attention, which collapsed spatial info and made the attention a no-op.
     """
     def __init__(self, embd_dim=EMBD_DIM, dropout=DROPOUT):
         super().__init__()
@@ -106,17 +112,17 @@ class ImageEncoder(nn.Module):
                     p.requires_grad = False
 
         self.backbone   = backbone
-        self.pool       = nn.AdaptiveAvgPool2d((1, 1))   # → [B, 1280, 1, 1]
         self.dropout    = nn.Dropout(p=dropout)
-        self.projection = nn.Linear(1280, embd_dim)
-        self.layernorm  = nn.LayerNorm(embd_dim)
+        self.projection = nn.Linear(1280, embd_dim)      # per-token projection
 
-        # Single self-attention block for global context
+        # Pre-norm self-attention over spatial tokens (Transformer block pattern)
+        self.attn_norm = nn.LayerNorm(embd_dim)
         self.attn = nn.MultiheadAttention(
             embed_dim=embd_dim, num_heads=ATTEN_HEADS, batch_first=True, dropout=dropout
         )
 
-        # MLP head with GELU (similar to CLIP's projection head)
+        # Pre-norm MLP applied per spatial token before pooling
+        self.mlp_norm = nn.LayerNorm(embd_dim)
         self.mlp_head = nn.Sequential(
             nn.Linear(embd_dim, embd_dim * 2),
             nn.GELU(),
@@ -124,20 +130,26 @@ class ImageEncoder(nn.Module):
             nn.Linear(embd_dim * 2, embd_dim),
         )
 
+        self.final_norm = nn.LayerNorm(embd_dim)
+
     def forward(self, x):
-        x = self.backbone(x)                          # [B, 1280, H', W']
-        x = self.pool(x).flatten(1)                  # [B, 1280]
-        x = self.dropout(self.projection(x))         # [B, embd_dim]
+        x = self.backbone(x)                              # [B, 1280, H', W']
+        B, C, H, W = x.shape
+        x = x.flatten(2).transpose(1, 2)                  # [B, H'*W', 1280]  (49 spatial tokens)
+        x = self.dropout(self.projection(x))               # [B, 49, embd_dim]
 
-        # Self-attention (treat vector as a seq of length 1)
-        x = x.unsqueeze(1)                           # [B, 1, embd_dim]
-        attn_out, _ = self.attn(x, x, x)
-        x = (x + attn_out).squeeze(1)               # residual + squeeze → [B, embd_dim]
+        # Self-attention with pre-norm + residual
+        x_norm = self.attn_norm(x)
+        attn_out, _ = self.attn(x_norm, x_norm, x_norm)
+        x = x + attn_out                                  # [B, 49, embd_dim]
 
-        # MLP head with residual connection
-        x = x + self.mlp_head(x)
+        # Per-token MLP with pre-norm + residual
+        x = x + self.mlp_head(self.mlp_norm(x))           # [B, 49, embd_dim]
 
-        return F.normalize(self.layernorm(x), dim=-1)  # unit-norm embedding
+        # Global average pool over spatial tokens
+        x = x.mean(dim=1)                                 # [B, embd_dim]
+
+        return F.normalize(self.final_norm(x), dim=-1)     # unit-norm embedding
 
 
 # ── Text Encoder ──────────────────────────────────────────────────────────────
@@ -177,7 +189,12 @@ class TextEncoder(nn.Module):
         pad_mask = (attention_mask == 0) if attention_mask is not None else None
         x = self.transformer(x, src_key_padding_mask=pad_mask)   # [B, L, embd_dim]
 
-        x = x.mean(dim=1)         # Mean-pool over valid tokens → [B, embd_dim]
+        # Masked mean pooling — exclude padding positions
+        if attention_mask is not None:
+            mask = attention_mask.unsqueeze(-1).float()   # [B, L, 1]
+            x = (x * mask).sum(1) / mask.sum(1).clamp(min=1e-9)  # [B, embd_dim]
+        else:
+            x = x.mean(dim=1)                             # [B, embd_dim]
         x = x + self.mlp_head(x)  # MLP head with residual
 
         return F.normalize(self.norm(x), dim=-1)   # unit-norm embedding
