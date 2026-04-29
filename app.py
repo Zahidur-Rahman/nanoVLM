@@ -120,7 +120,7 @@ with gr.Blocks(theme=gr.themes.Soft(), title="NanoVLM Demo") as demo:
     gr.Markdown(
         """
         # 🔭 NanoVLM — Vision-Language Matching Demo
-        **NanoVLM** is a CLIP-style contrastive model trained on Flickr30k.
+        **NanoVLM** is a CLIP-style contrastive model trained natively on the massive 591k-pair MS-COCO dataset.
         It aligns images and text in a shared 256-dimensional embedding space.
 
         **How to use:**
