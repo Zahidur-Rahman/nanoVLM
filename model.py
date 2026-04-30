@@ -189,12 +189,8 @@ class TextEncoder(nn.Module):
         pad_mask = (attention_mask == 0) if attention_mask is not None else None
         x = self.transformer(x, src_key_padding_mask=pad_mask)   # [B, L, embd_dim]
 
-        # Masked mean pooling — exclude padding positions
-        if attention_mask is not None:
-            mask = attention_mask.unsqueeze(-1).float()   # [B, L, 1]
-            x = (x * mask).sum(1) / mask.sum(1).clamp(min=1e-9)  # [B, embd_dim]
-        else:
-            x = x.mean(dim=1)                             # [B, embd_dim]
+        # Mean-pool over all tokens (matches training notebook)
+        x = x.mean(dim=1)                                 # [B, embd_dim]
         x = x + self.mlp_head(x)  # MLP head with residual
 
         return F.normalize(self.norm(x), dim=-1)   # unit-norm embedding
